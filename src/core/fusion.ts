@@ -8,6 +8,8 @@ import {
   VerdictLabel,
 } from './signals/types';
 import { splitSentences } from './extract/normalize';
+import { computeD1Deep } from './signals/d1_deep';
+import { computeD2FastText } from './signals/d2_fasttext';
 import { computeD3Compression } from './signals/d3_compression';
 import { computeD4Burstiness } from './signals/d4_burstiness';
 import { computeD5TextStats } from './signals/d5_stats';
@@ -157,13 +159,13 @@ export function computeSentenceScores(text: string, globalScore: number): Senten
   if (sentences.length === 0) return [];
 
   return sentences.map((s, index) => {
-    // Évaluation rapide locale par phrase
-    const d3 = computeD3Compression(s, 0.4);
-    const d6 = computeD6Slop(s, 'fr', 0.6);
+    const d2 = computeD2FastText(s, 'fr', 0.35);
+    const d3 = computeD3Compression(s, 0.25);
+    const d6 = computeD6Slop(s, 'fr', 0.40);
 
     let localScore = globalScore;
-    if (d3.available && d6.available) {
-      localScore = Math.round(((d3.value * 0.4) + (d6.value * 0.6)) * 100);
+    if (d2.available && d3.available && d6.available) {
+      localScore = Math.round(((d2.value * 0.35) + (d3.value * 0.25) + (d6.value * 0.40)) * 100);
     } else if (d6.available) {
       localScore = Math.round(d6.value * 100);
     }
@@ -177,18 +179,23 @@ export function computeSentenceScores(text: string, globalScore: number): Senten
 }
 
 /**
- * Pipeline complet d'analyse heuristique P1
+ * Pipeline complet d'analyse P2 (D1 à D7)
  */
-export function analyzeTextPipeline(
+export async function analyzeTextPipeline(
   normalizedText: string,
   wordCount: number,
   language: 'fr' | 'en' | 'unknown',
   settings: SettingsSchema,
   metadata?: { url?: string; title?: string; vibeScore?: number | null }
-): AnalysisResult {
+): Promise<AnalysisResult> {
   const start = performance.now();
 
-  // Exécution des signaux heuristiques D3, D4, D5, D6, D7
+  // Exécution parallèle des signaux D1 à D7
+  const [d1, d2] = await Promise.all([
+    computeD1Deep(normalizedText, language, settings.weights.d1),
+    Promise.resolve(computeD2FastText(normalizedText, language, settings.weights.d2)),
+  ]);
+
   const d3 = computeD3Compression(normalizedText, settings.weights.d3);
   const d4 = computeD4Burstiness(normalizedText, settings.weights.d4);
   const d5 = computeD5TextStats(normalizedText, settings.weights.d5);
@@ -196,27 +203,8 @@ export function analyzeTextPipeline(
   const d7 = computeD7Patterns(normalizedText, settings.weights.d7);
 
   const rawSignals: SignalResult[] = [
-    // Placeholder pour D1 et D2 (activés en P2 avec ONNX)
-    {
-      id: 'd1',
-      name: 'Classifieur profond (ONNX)',
-      value: 0,
-      weight: settings.weights.d1,
-      contribution: 0,
-      raw: 'En attente modèle ONNX P2',
-      ms: 0,
-      available: false,
-    },
-    {
-      id: 'd2',
-      name: 'fastText supervisé',
-      value: 0,
-      weight: settings.weights.d2,
-      contribution: 0,
-      raw: 'En attente modèle fastText P2',
-      ms: 0,
-      available: false,
-    },
+    d1,
+    d2,
     d3,
     d4,
     d5,
@@ -228,7 +216,7 @@ export function analyzeTextPipeline(
       value: 0,
       weight: settings.weights.d8,
       contribution: 0,
-      raw: 'Désactivé par défaut',
+      raw: 'Désactivé par défaut (Advanced)',
       ms: 0,
       available: false,
     },
@@ -281,8 +269,8 @@ export function analyzeTextPipeline(
     cache: 'miss',
     durationMs,
     models: {
-      version: 1,
-      providers: ['heuristic-wasm'],
+      version: 2,
+      providers: ['onnx-webgpu-wasm', 'fasttext-supervised'],
     },
     url: metadata?.url,
     title: metadata?.title,

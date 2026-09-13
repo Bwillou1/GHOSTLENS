@@ -16,7 +16,7 @@ async function runBenchmark() {
 
   for (let i = 0; i < iterations; i++) {
     const start = performance.now();
-    analyzeTextPipeline(doc.normalized, doc.wordCount, doc.language, DEFAULT_SETTINGS);
+    await analyzeTextPipeline(doc.normalized, doc.wordCount, doc.language, DEFAULT_SETTINGS);
     const duration = performance.now() - start;
     times.push(duration);
   }

@@ -81,8 +81,8 @@ async function handleAnalyze(payload: {
     return cached;
   }
 
-  // 2. Exécution du pipeline heuristique
-  const result = analyzeTextPipeline(text, wordCount, language, settings, {
+  // 2. Exécution du pipeline d'analyse
+  const result = await analyzeTextPipeline(text, wordCount, language, settings, {
     url: payload.url,
     title: payload.title,
   });

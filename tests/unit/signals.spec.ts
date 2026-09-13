@@ -1,11 +1,13 @@
 import { describe, it, expect } from 'vitest';
+import { computeD1Deep } from '@/src/core/signals/d1_deep';
+import { computeD2FastText } from '@/src/core/signals/d2_fasttext';
 import { computeD3Compression } from '@/src/core/signals/d3_compression';
 import { computeD4Burstiness } from '@/src/core/signals/d4_burstiness';
 import { computeD5TextStats } from '@/src/core/signals/d5_stats';
 import { computeD6Slop } from '@/src/core/signals/d6_slop';
 import { computeD7Patterns } from '@/src/core/signals/d7_patterns';
 
-describe('Signaux Heuristiques (D3 à D7)', () => {
+describe('Signaux de Détection (D1 à D7)', () => {
   const AI_SAMPLE_FR = `
     Dans un monde en constante évolution, l'intelligence artificielle joue un rôle crucial dans la transformation numérique de notre société.
     Il est important de noter que cette technologie représente un tournant décisif pour repousser les limites de la créativité.
@@ -20,6 +22,26 @@ describe('Signaux Heuristiques (D3 à D7)', () => {
     Franchement, le résultat est bluffant : 15 000 photos traitées en moins de deux minutes sur mon vieux portable.
     Par contre, j'ai oublié de gérer les espaces dans les noms de dossiers, ce qui a causé un bug idiot sur trois répertoires. Je corrigerai ça ce week-end autour d'un café.
   `;
+
+  it('D1 (Classifieur Profond) : s\'exécute et agrège les probabilités par lots de tokens', async () => {
+    const aiRes = await computeD1Deep(AI_SAMPLE_FR, 'fr');
+    const humanRes = await computeD1Deep(HUMAN_SAMPLE_FR, 'fr');
+    expect(aiRes.available).toBe(true);
+    expect(humanRes.available).toBe(true);
+    expect(aiRes.value).toBeGreaterThan(0.5);
+    expect(humanRes.value).toBeLessThan(0.6);
+  });
+
+  it('D2 (fastText supervisé) : extrait les n-grams responsables et calcule P(AI)', () => {
+    const aiRes = computeD2FastText(AI_SAMPLE_FR, 'fr');
+    const humanRes = computeD2FastText(HUMAN_SAMPLE_FR, 'fr');
+    expect(aiRes.available).toBe(true);
+    expect(humanRes.available).toBe(true);
+    expect(aiRes.value).toBeGreaterThan(0.5);
+    expect(humanRes.value).toBeLessThan(0.5);
+    expect(aiRes.topNGrams.length).toBeGreaterThan(0);
+    expect(aiRes.raw).toContain('Top n-grams');
+  });
 
   it('D3 (Compression) : doit être borné entre 0 et 1 et disponible sur texte suffisant', () => {
     const res = computeD3Compression(AI_SAMPLE_FR);
