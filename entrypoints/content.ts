@@ -3,6 +3,7 @@ import { extractEditorialContent } from '@/src/core/extract/readability';
 import { prepareDocument } from '@/src/core/extract/normalize';
 import { GhostLensBadge } from './content/badge';
 import { GhostLensBlockScreen } from './content/block';
+import { GhostLensWarnBanner } from './content/warn';
 import { GhostLensHighlighter } from './content/highlight';
 import { AnalysisResult } from '@/src/core/signals/types';
 
@@ -19,6 +20,7 @@ export default defineContentScript({
 
     const badge = new GhostLensBadge();
     const blockScreen = new GhostLensBlockScreen();
+    const warnBanner = new GhostLensWarnBanner();
     const highlighter = new GhostLensHighlighter();
 
     let isAnalyzing = false;
@@ -95,6 +97,9 @@ export default defineContentScript({
         sendResponse({ ok: true });
       } else if (message.type === 'gl:toggle-highlight') {
         highlighter.toggle();
+        sendResponse({ ok: true });
+      } else if (message.type === 'gl:show-warn') {
+        warnBanner.show(message.result);
         sendResponse({ ok: true });
       } else if (message.type === 'gl:reanalyze') {
         triggerAnalysis();
