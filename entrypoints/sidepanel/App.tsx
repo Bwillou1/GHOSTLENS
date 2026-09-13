@@ -131,7 +131,7 @@ export default function SidePanelApp() {
         )}
       </main>
 
-      {/* Footer Disclaimer (C-10) */}
+      {/* Footer Disclaimer (C-10) & Licences */}
       <footer style={{
         padding: tokens.spacing[3],
         borderTop: `1px solid ${tokens.colors.border.subtle}`,
@@ -139,8 +139,26 @@ export default function SidePanelApp() {
         textAlign: 'center',
         fontSize: tokens.typography.fontSize.xs,
         color: tokens.colors.text.muted,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '4px',
+        alignItems: 'center',
       }}>
-        {t('verdict.disclaimer')}
+        <span>{t('verdict.disclaimer')}</span>
+        <button
+          onClick={() => chrome.runtime.openOptionsPage()}
+          style={{
+            background: 'none',
+            border: 'none',
+            color: '#38bdf8',
+            fontSize: '11px',
+            cursor: 'pointer',
+            textDecoration: 'underline',
+            padding: '2px',
+          }}
+        >
+          📜 Licences Open Source & Remerciements
+        </button>
       </footer>
     </div>
   );
