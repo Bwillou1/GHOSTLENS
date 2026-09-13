@@ -1,0 +1,61 @@
+{
+  "version": 3,
+  "models": [
+    {
+      "name": "gl-det-ai-base",
+      "task": "text-classification",
+      "quant": "int8",
+      "size": 52000000,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "core": true
+    },
+    {
+      "name": "gl-fasttext-lin",
+      "task": "language-id",
+      "quant": "none",
+      "size": 9000000,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "core": true
+    },
+    {
+      "name": "gl-fasttext-ai",
+      "task": "text-classification",
+      "quant": "none",
+      "size": 6000000,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "core": true
+    },
+    {
+      "name": "gl-minilm",
+      "task": "embedding",
+      "quant": "int8",
+      "size": 9000000,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "core": true
+    },
+    {
+      "name": "gl-img-det",
+      "task": "image-classification",
+      "quant": "int8",
+      "size": 38000000,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "images": true
+    },
+    {
+      "name": "gl-wm-scorer",
+      "task": "token-likelihood",
+      "quant": "int4",
+      "size": 620000000,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "advanced": true
+    },
+    {
+      "name": "gl-llm-humanize",
+      "task": "text-generation",
+      "quant": "int4",
+      "size": 1600000000,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "optional": true
+    }
+  ]
+}

@@ -1,0 +1,83 @@
+{
+  "badge": {
+    "analyzing": "Analyse…",
+    "insufficient": "Données insuffisantes",
+    "likelyHuman": "{score}% Humain",
+    "mixed": "{score}% Mixte",
+    "likelyAi": "{score}% Prob. IA",
+    "ai": "{score}% IA",
+    "openReport": "Ouvrir le rapport (Ctrl+Shift+G)",
+    "slowMode": "Mode CPU"
+  },
+  "verdict": {
+    "title": "Verdict de Détection",
+    "human": "Probablement humain",
+    "mixed": "Mixte / incertain",
+    "likelyAi": "Probablement IA",
+    "ai": "Généré par IA",
+    "insufficient": "Données insuffisantes",
+    "disclaimer": "La détection est probabiliste et ne constitue pas une preuve absolue.",
+    "confidence": {
+      "low": "Confiance faible",
+      "medium": "Confiance moyenne",
+      "high": "Confiance haute"
+    }
+  },
+  "signals": {
+    "title": "Signaux & Explicabilité",
+    "d1": "Classifieur profond",
+    "d2": "fastText supervisé",
+    "d3": "Compressibilité (entropie)",
+    "d4": "Burstiness (rythme des phrases)",
+    "d5": "Statistiques lexicales",
+    "d6": "AI-isms (Slop list)",
+    "d7": "Patterns rhétoriques",
+    "d8": "Watermark numérique",
+    "d9": "Fluidité & syntaxe",
+    "d10": "Plagiat local",
+    "d11": "Site vibe-coded",
+    "weight": "Poids",
+    "contribution": "Contribution",
+    "raw": "Valeur brute",
+    "time": "Temps de calcul"
+  },
+  "block": {
+    "lockedTitle": "Contenu bloqué par GhostLens",
+    "aiScore": "Score IA : {score}% ({confidence})",
+    "vibeScore": "Site probablement vibe-codé ({score}/100)",
+    "reason": "Raison : {reason}",
+    "description": "Ce contenu a été masqué car il est très probablement généré par IA.",
+    "openReport": "Rapport détaillé",
+    "allowHour": "Autoriser cette page 1 h",
+    "allowAlways": "Autoriser toujours ce site",
+    "allowOnce": "Autoriser une fois",
+    "disclaimer": "Note : la détection est probabiliste — si ce contenu est humain, « Autoriser toujours » ajoute ce site à vos exceptions."
+  },
+  "tabs": {
+    "verdict": "Verdict",
+    "signals": "Signaux",
+    "text": "Texte",
+    "images": "Images",
+    "humanizer": "Humanizer"
+  },
+  "humanizer": {
+    "title": "Humaniseur de Texte",
+    "original": "Texte original (IA)",
+    "humanized": "Texte humanisé",
+    "action": "Humaniser",
+    "copy": "Copier",
+    "replace": "Remplacer la sélection",
+    "reset": "Réinitialiser",
+    "similarity": "Similarité sémantique : {value}%",
+    "scoreDrop": "Score IA : {before}% → {after}%"
+  },
+  "options": {
+    "general": "Général",
+    "detection": "Détection & Signaux",
+    "models": "Modèles Locaux",
+    "blocking": "Blocage & Filtres",
+    "privacy": "Confidentialité & Données",
+    "clearAll": "Tout effacer",
+    "clearAllConfirm": "Voulez-vous vraiment supprimer toutes les analyses en cache et réglages locaux ?"
+  }
+}
