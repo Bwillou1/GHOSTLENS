@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="gl-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#8b5cf6" />
+      <stop offset="100%" stop-color="#4f46e5" />
+    </linearGradient>
+    <linearGradient id="gl-lens" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#06b6d4" />
+      <stop offset="100%" stop-color="#3b82f6" />
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="28" fill="url(#gl-grad)" />
+  <circle cx="60" cy="56" r="28" fill="none" stroke="#ffffff" stroke-width="8" />
+  <circle cx="60" cy="56" r="16" fill="url(#gl-lens)" opacity="0.85" />
+  <line x1="80" y1="76" x2="104" y2="100" stroke="#ffffff" stroke-width="10" stroke-linecap="round" />
+  <circle cx="68" cy="48" r="4" fill="#ffffff" />
+</svg>

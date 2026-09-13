@@ -8,6 +8,12 @@ export default defineConfig({
     description: 'Détection de texte et images IA en temps réel, 100% locale, explicable et sans compromis sur la vie privée.',
     version: '1.0.0',
     manifest_version: 3,
+    icons: {
+      16: 'icons/icon-16.png',
+      32: 'icons/icon-32.png',
+      48: 'icons/icon-48.png',
+      128: 'icons/icon-128.png',
+    },
     permissions: [
       'storage',
       'unlimitedStorage',

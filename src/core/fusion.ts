@@ -15,6 +15,8 @@ import { computeD4Burstiness } from './signals/d4_burstiness';
 import { computeD5TextStats } from './signals/d5_stats';
 import { computeD6Slop } from './signals/d6_slop';
 import { computeD7Patterns } from './signals/d7_patterns';
+import { computeWatermarkScore } from './signals/d8_watermark';
+import { computePlagiarismScore } from './signals/d10_plagiarism';
 
 /**
  * Moteur de Fusion et Scoring de GhostLens (§6)
@@ -201,6 +203,8 @@ export async function analyzeTextPipeline(
   const d5 = computeD5TextStats(normalizedText, settings.weights.d5);
   const d6 = computeD6Slop(normalizedText, language, settings.weights.d6);
   const d7 = computeD7Patterns(normalizedText, settings.weights.d7);
+  const d8Res = computeWatermarkScore(normalizedText);
+  const d10Res = computePlagiarismScore(normalizedText);
 
   const rawSignals: SignalResult[] = [
     d1,
@@ -211,14 +215,9 @@ export async function analyzeTextPipeline(
     d6,
     d7,
     {
-      id: 'd8',
-      name: 'Watermark numérique',
-      value: 0,
+      ...d8Res,
       weight: settings.weights.d8,
-      contribution: 0,
-      raw: 'Désactivé par défaut (Advanced)',
-      ms: 0,
-      available: false,
+      available: settings.signals.d8 || d8Res.isWatermarked,
     },
     {
       id: 'd9',
@@ -231,18 +230,15 @@ export async function analyzeTextPipeline(
       available: false,
     },
     {
-      id: 'd10',
-      name: 'Plagiat local',
-      value: 0,
+      ...d10Res,
       weight: settings.weights.d10,
-      contribution: 0,
-      raw: 'Aucun index local actif',
-      ms: 0,
-      available: false,
+      available: settings.signals.d10Web || d10Res.matchedBoilerplateCount > 0,
     },
   ];
 
   const fused = fuseSignals(rawSignals, wordCount, settings, {
+    watermarkDetected: d8Res.isWatermarked,
+    watermarkZScore: d8Res.zScore,
     vibeScore: metadata?.vibeScore,
     url: metadata?.url,
     title: metadata?.title,

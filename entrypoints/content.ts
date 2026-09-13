@@ -1,5 +1,6 @@
 import { defineContentScript } from 'wxt/sandbox';
 import { extractEditorialContent } from '@/src/core/extract/readability';
+import { tryExtractWithAdapter } from '@/src/core/adapters/registry';
 import { prepareDocument } from '@/src/core/extract/normalize';
 import { GhostLensBadge } from './content/badge';
 import { GhostLensBlockScreen } from './content/block';
@@ -34,14 +35,23 @@ export default defineContentScript({
       const selection = window.getSelection()?.toString()?.trim() || '';
       let textToAnalyze = '';
       let isSelection = false;
+      let pageTitle = document.title;
 
       if (selection && selection.split(/\s+/).length >= 20) {
         textToAnalyze = selection;
         isSelection = true;
       } else {
-        // 2. Extraction Readability zéro-erreur (C-3)
-        const extracted = extractEditorialContent(document, url);
-        textToAnalyze = extracted.textContent;
+        // 2. Extraction ciblée par adaptateur de site (P6)
+        const adapterResult = tryExtractWithAdapter(document, url);
+        if (adapterResult && adapterResult.text) {
+          textToAnalyze = adapterResult.text;
+          if (adapterResult.title) pageTitle = adapterResult.title;
+        } else {
+          // 3. Extraction Readability zéro-erreur (C-3)
+          const extracted = extractEditorialContent(document, url);
+          textToAnalyze = extracted.textContent;
+          if (extracted.title) pageTitle = extracted.title;
+        }
       }
 
       // 3. Normalisation
@@ -58,7 +68,7 @@ export default defineContentScript({
             text: doc.normalized,
             wordCount: doc.wordCount,
             language: doc.language,
-            title: document.title,
+            title: pageTitle,
           },
         });
 

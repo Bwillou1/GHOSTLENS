@@ -1,0 +1,9 @@
+{
+  "name": "com.ghostlens.native",
+  "description": "GhostLens Native Messaging Host for high-accuracy local LLM inference and Binoculars detection",
+  "path": "host.js",
+  "type": "stdio",
+  "allowed_origins": [
+    "chrome-extension://*/"
+  ]
+}
