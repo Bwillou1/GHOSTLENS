@@ -33,15 +33,26 @@ export default defineBackground(() => {
   // Gestionnaire de messages IPC
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.type === 'gl:analyze') {
-      handleAnalyze(message.payload).then((result) => {
-        sendResponse({ type: 'gl:result', result });
-      });
+      handleAnalyze(message.payload)
+        .then((result) => {
+          if (sender.tab?.id) {
+            const badgeText = result.label === 'insufficient' ? '' : `${result.score}%`;
+            chrome.action.setBadgeText({ tabId: sender.tab.id, text: badgeText });
+            chrome.action.setBadgeBackgroundColor({ tabId: sender.tab.id, color: result.color || '#38bdf8' });
+          }
+          sendResponse({ type: 'gl:result', result });
+        })
+        .catch((err) => {
+          console.error('[GhostLens] Erreur handleAnalyze', err);
+          sendResponse({ type: 'gl:error', error: err?.message || 'Erreur inconnue' });
+        });
       return true; // Asynchrone
     }
 
     if (message.type === 'gl:open') {
-      if (sender.tab?.id) {
-        chrome.sidePanel.open({ tabId: sender.tab.id }).catch((err) => {
+      const tabId = sender.tab?.id;
+      if (tabId) {
+        chrome.sidePanel.open({ tabId }).catch((err) => {
           console.warn('[GhostLens] Erreur ouverture sidePanel', err);
         });
       }
