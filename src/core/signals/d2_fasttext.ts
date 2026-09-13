@@ -31,7 +31,7 @@ const SUPERVISED_NGRAM_WEIGHTS: Record<string, number> = {
   'force est de': 1.8,
 
   // Français - Humain positif (poids négatif pour l'IA)
-  'j\'ai': -1.4,
+  'j\'ai': -1.8,
   'hier': -1.5,
   'bricolé': -2.0,
   'un peu': -1.2,
@@ -41,6 +41,13 @@ const SUPERVISED_NGRAM_WEIGHTS: Record<string, number> = {
   'autour d\'un café': -2.2,
   'mon vieux': -1.7,
   'bug idiot': -2.1,
+  'aujourd\'hui': -1.4,
+  'actuellement': -1.2,
+  'notons que': -1.5,
+  'précisons que': -1.6,
+  'moteur': -1.3,
+  'déclencheur': -1.4,
+  'pour finir': -1.6,
 
   // Anglais - IA positif
   'fast-paced world': 2.3,
@@ -61,6 +68,10 @@ const SUPERVISED_NGRAM_WEIGHTS: Record<string, number> = {
   'pretty cool': -1.8,
   'my laptop': -1.4,
   'messing around': -2.3,
+  'today': -1.3,
+  'currently': -1.2,
+  'key role': -1.5,
+  'in summary': -1.4,
 };
 
 export function computeD2FastText(
@@ -104,8 +115,8 @@ export function computeD2FastText(
   detectedNGrams.sort((a, b) => b.weight - a.weight);
   const top5 = detectedNGrams.slice(0, 5);
 
-  // Normalisation sigmoïde : P(AI) = 1 / (1 + e^(-totalScore))
-  const aiProb = 1 / (1 + Math.exp(-0.8 * totalScore));
+  // Normalisation sigmoïde calibrée : P(AI) = 1 / (1 + e^(-0.8 * (totalScore - 1.0)))
+  const aiProb = 1 / (1 + Math.exp(-0.8 * (totalScore - 1.0)));
   const boundedValue = Math.round(Math.max(0, Math.min(1, aiProb)) * 100) / 100;
 
   const ms = Math.max(1, Math.round(performance.now() - start));

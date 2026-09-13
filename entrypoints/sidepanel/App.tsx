@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { AnalysisResult, SentenceScore } from '@/src/core/signals/types';
+import { humanizeTextPipeline, HumanizationResult } from '@/src/core/humanizer/pipeline';
 import { tokens } from '@/src/ui/tokens';
 import { t } from '@/src/i18n';
 
-type Tab = 'verdict' | 'signals' | 'text' | 'images';
+type Tab = 'verdict' | 'signals' | 'text' | 'images' | 'humanizer';
 
 export default function SidePanelApp() {
   const [activeTab, setActiveTab] = useState<Tab>('verdict');
@@ -30,6 +31,8 @@ export default function SidePanelApp() {
     const listener = (msg: any) => {
       if (msg.type === 'gl:result') {
         setResult(msg.result);
+      } else if (msg.type === 'gl:trigger-humanizer') {
+        setActiveTab('humanizer');
       }
     };
     chrome.runtime.onMessage.addListener(listener);
@@ -86,7 +89,7 @@ export default function SidePanelApp() {
         borderBottom: `1px solid ${tokens.colors.border.subtle}`,
         backgroundColor: tokens.colors.bg.secondary,
       }}>
-        {(['verdict', 'signals', 'text', 'images'] as Tab[]).map((tab) => (
+        {(['verdict', 'signals', 'text', 'images', 'humanizer'] as Tab[]).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -97,7 +100,7 @@ export default function SidePanelApp() {
               border: 'none',
               borderBottom: activeTab === tab ? `2px solid ${tokens.colors.text.accent}` : '2px solid transparent',
               color: activeTab === tab ? tokens.colors.text.accent : tokens.colors.text.secondary,
-              fontSize: tokens.typography.fontSize.sm,
+              fontSize: tokens.typography.fontSize.xs,
               fontWeight: activeTab === tab ? tokens.typography.fontWeight.semibold : tokens.typography.fontWeight.regular,
               cursor: 'pointer',
               transition: `all ${tokens.transitions.fast}`,
@@ -117,10 +120,13 @@ export default function SidePanelApp() {
           </div>
         ) : (
           <>
-            {activeTab === 'verdict' && <VerdictTab result={result} />}
+            {activeTab === 'verdict' && (
+              <VerdictTab result={result} onOpenHumanizer={() => setActiveTab('humanizer')} />
+            )}
             {activeTab === 'signals' && <SignalsTab result={result} />}
             {activeTab === 'text' && <TextTab sentenceScores={result.sentenceScores} />}
             {activeTab === 'images' && <ImagesTab images={result.images} />}
+            {activeTab === 'humanizer' && <HumanizerTab result={result} />}
           </>
         )}
       </main>
@@ -140,7 +146,7 @@ export default function SidePanelApp() {
   );
 }
 
-function VerdictTab({ result }: { result: AnalysisResult }) {
+function VerdictTab({ result, onOpenHumanizer }: { result: AnalysisResult; onOpenHumanizer: () => void }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: tokens.spacing[4] }}>
       {/* Grand Score Hero */}
@@ -175,6 +181,24 @@ function VerdictTab({ result }: { result: AnalysisResult }) {
           {t(`verdict.confidence.${result.confidence}` as any)} • {result.wordCount} mots analysés ({result.language.toUpperCase()})
         </div>
       </div>
+
+      {result.score >= 60 && (
+        <button
+          onClick={onOpenHumanizer}
+          style={{
+            padding: '10px 16px',
+            backgroundColor: tokens.colors.text.accent,
+            color: tokens.colors.bg.primary,
+            border: 'none',
+            borderRadius: tokens.radii.md,
+            fontWeight: tokens.typography.fontWeight.semibold,
+            fontSize: tokens.typography.fontSize.sm,
+            cursor: 'pointer',
+          }}
+        >
+          ✨ {t('humanizer.action')} ce texte
+        </button>
+      )}
 
       {/* Métadonnées */}
       <div style={{
@@ -357,6 +381,150 @@ function ImagesTab({ images }: { images: any[] }) {
           ? 'Aucune image analysable détectée sur cette page.'
           : `${images.length} images analysées.`}
       </p>
+    </div>
+  );
+}
+
+function HumanizerTab({ result }: { result: AnalysisResult }) {
+  const [humanizedResult, setHumanizedResult] = useState<HumanizationResult | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const fullText = result.sentenceScores.map((s) => s.text || '').join(' ');
+
+  const handleHumanize = async () => {
+    setLoading(true);
+    try {
+      const res = await humanizeTextPipeline(fullText, result.language as any);
+      setHumanizedResult(res);
+    } catch (err) {
+      console.warn('[GhostLens] Erreur humanisation', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCopy = () => {
+    if (humanizedResult) {
+      navigator.clipboard.writeText(humanizedResult.humanized);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: tokens.spacing[4] }}>
+      <h2 style={{ fontSize: tokens.typography.fontSize.base, fontWeight: tokens.typography.fontWeight.semibold, margin: 0 }}>
+        {t('humanizer.title')}
+      </h2>
+
+      {!humanizedResult ? (
+        <div style={{ textAlign: 'center', padding: tokens.spacing[6] }}>
+          <p style={{ fontSize: tokens.typography.fontSize.sm, color: tokens.colors.text.secondary, marginBottom: tokens.spacing[4] }}>
+            Transforme le texte synthétique en écriture naturelle, sans invention de faits et vérifiable.
+          </p>
+          <button
+            onClick={handleHumanize}
+            disabled={loading}
+            style={{
+              padding: '10px 20px',
+              backgroundColor: tokens.colors.text.accent,
+              color: tokens.colors.bg.primary,
+              border: 'none',
+              borderRadius: tokens.radii.md,
+              fontWeight: tokens.typography.fontWeight.bold,
+              fontSize: tokens.typography.fontSize.sm,
+              cursor: loading ? 'wait' : 'pointer',
+            }}
+          >
+            {loading ? 'Humanisation en cours…' : `✨ ${t('humanizer.action')}`}
+          </button>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: tokens.spacing[3] }}>
+          {/* Métriques d'humanisation */}
+          <div style={{
+            padding: tokens.spacing[3],
+            backgroundColor: tokens.colors.bg.secondary,
+            borderRadius: tokens.radii.md,
+            border: '1px solid rgba(56, 189, 248, 0.3)',
+            fontSize: tokens.typography.fontSize.xs,
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: tokens.spacing[1] }}>
+              <span>Score IA :</span>
+              <strong>{humanizedResult.beforeScore}% → <span style={{ color: tokens.colors.human }}>{humanizedResult.afterScore}%</span> (-{humanizedResult.scoreDrop} pts)</strong>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span>Similarité sémantique :</span>
+              <strong>{(humanizedResult.similarity * 100).toFixed(0)}% (Seuil : $\ge 85\%$)</strong>
+            </div>
+          </div>
+
+          {/* Diff visuel */}
+          <div style={{
+            padding: tokens.spacing[3],
+            backgroundColor: tokens.colors.bg.secondary,
+            borderRadius: tokens.radii.md,
+            border: `1px solid ${tokens.colors.border.subtle}`,
+            fontSize: tokens.typography.fontSize.xs,
+            lineHeight: 1.6,
+            maxHeight: '260px',
+            overflowY: 'auto',
+          }}>
+            {humanizedResult.diff.map((chunk, idx) => {
+              if (chunk.type === 'delete') {
+                return (
+                  <span key={idx} style={{ backgroundColor: 'rgba(220, 38, 38, 0.25)', color: '#fca5a5', textDecoration: 'line-through' }}>
+                    {chunk.value}
+                  </span>
+                );
+              }
+              if (chunk.type === 'insert') {
+                return (
+                  <span key={idx} style={{ backgroundColor: 'rgba(22, 163, 74, 0.25)', color: '#86efac', fontWeight: 600 }}>
+                    {chunk.value}
+                  </span>
+                );
+              }
+              return <span key={idx}>{chunk.value}</span>;
+            })}
+          </div>
+
+          {/* Boutons d'action */}
+          <div style={{ display: 'flex', gap: tokens.spacing[2] }}>
+            <button
+              onClick={handleCopy}
+              style={{
+                flex: 1,
+                padding: '8px 12px',
+                backgroundColor: tokens.colors.text.accent,
+                color: tokens.colors.bg.primary,
+                border: 'none',
+                borderRadius: tokens.radii.md,
+                fontWeight: tokens.typography.fontWeight.semibold,
+                fontSize: tokens.typography.fontSize.xs,
+                cursor: 'pointer',
+              }}
+            >
+              {copied ? 'Copié !' : t('humanizer.copy')}
+            </button>
+            <button
+              onClick={() => setHumanizedResult(null)}
+              style={{
+                padding: '8px 12px',
+                backgroundColor: tokens.colors.bg.tertiary,
+                color: tokens.colors.text.primary,
+                border: `1px solid ${tokens.colors.border.default}`,
+                borderRadius: tokens.radii.md,
+                fontSize: tokens.typography.fontSize.xs,
+                cursor: 'pointer',
+              }}
+            >
+              {t('humanizer.reset')}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
