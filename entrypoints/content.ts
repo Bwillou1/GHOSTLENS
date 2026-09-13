@@ -36,11 +36,12 @@ export default defineContentScript({
 
     let isAnalyzing = false;
     let currentResult: AnalysisResult | null = null;
+    let lastAnalyzedText = '';
 
-    async function triggerAnalysis(): Promise<void> {
+    async function triggerAnalysis(force: boolean = false): Promise<void> {
       if (isAnalyzing) return;
-      isAnalyzing = true;
-      badge.showAnalyzing();
+
+      const currentUrl = window.location.href;
 
       // 1. Détection de sélection utilisateur prioritaire (§5 Étape 1)
       const selection = window.getSelection()?.toString()?.trim() || '';
@@ -48,30 +49,51 @@ export default defineContentScript({
       let isSelection = false;
       let pageTitle = document.title;
 
-      if (selection && selection.split(/\s+/).length >= 15) {
+      if (selection && selection.split(/\s+/).length >= 10) {
         textToAnalyze = selection;
         isSelection = true;
       } else {
         // 2. Extraction ciblée par adaptateur de site (P6)
-        const adapterResult = tryExtractWithAdapter(document, url);
-        if (adapterResult && adapterResult.text && adapterResult.text.length > 20) {
+        const adapterResult = tryExtractWithAdapter(document, currentUrl);
+        if (adapterResult && adapterResult.text && adapterResult.text.length > 15) {
           textToAnalyze = adapterResult.text;
           if (adapterResult.title) pageTitle = adapterResult.title;
         } else {
           // 3. Extraction Readability zéro-erreur (C-3)
-          const extracted = extractEditorialContent(document, url);
+          const extracted = extractEditorialContent(document, currentUrl);
           textToAnalyze = extracted.textContent;
           if (extracted.title) pageTitle = extracted.title;
 
-          // 4. Fallback de secours si le texte nettoyé est trop court mais que le body a du contenu
-          if ((!textToAnalyze || textToAnalyze.length < 50) && document.body) {
-            const bodyText = document.body.innerText || document.body.textContent || '';
-            if (bodyText.trim().length >= 50) {
-              textToAnalyze = bodyText.trim();
+          // 4. Fallback de secours pour les SPAs et réseaux sociaux
+          if ((!textToAnalyze || textToAnalyze.length < 30) && document.body) {
+            // Chercher dans les paragraphes et articles visibles
+            const pEls = document.querySelectorAll('article, p, div[data-testid*="tweet"], .feed-shared-update-v2');
+            const collected: string[] = [];
+            pEls.forEach((el) => {
+              const t = el.textContent?.trim();
+              if (t && t.length > 20) collected.push(t);
+            });
+            if (collected.length > 0) {
+              textToAnalyze = collected.join('\n\n');
+            } else {
+              textToAnalyze = (document.body.innerText || document.body.textContent || '').trim();
             }
           }
         }
       }
+
+      // Éviter de re-scanner si le contenu n'a pas changé
+      if (!force && textToAnalyze === lastAnalyzedText && currentResult) {
+        return;
+      }
+
+      if (!textToAnalyze || textToAnalyze.length < 15) {
+        return;
+      }
+
+      isAnalyzing = true;
+      lastAnalyzedText = textToAnalyze;
+      badge.showAnalyzing();
 
       // 3. Normalisation
       const doc = prepareDocument(textToAnalyze);
@@ -83,7 +105,7 @@ export default defineContentScript({
           payload: {
             kind: 'text',
             source: isSelection ? 'selection' : 'page',
-            url,
+            url: currentUrl,
             text: doc.normalized,
             wordCount: doc.wordCount,
             language: doc.language,
@@ -111,16 +133,42 @@ export default defineContentScript({
           }
         }
       } catch (err) {
-        console.warn('[GhostLens] Erreur lors de l’analyse', err);
+        console.warn('[GhostLens] Erreur analyse', err);
       } finally {
         isAnalyzing = false;
       }
     }
 
-    // Lancement immédiat à l'état idle
+    // 1. Lancement immédiat à l'état idle
     triggerAnalysis();
 
-    // Écoute des commandes et messages
+    // 2. Lancement retardé (500ms et 1500ms) pour laisser les frameworks SPA (React/Vue/Twitter) hydrater le DOM
+    setTimeout(() => triggerAnalysis(), 500);
+    setTimeout(() => triggerAnalysis(), 1800);
+
+    // 3. Observer pour re-scanner dynamiquement quand de nouveaux posts/tweets sont injectés
+    let observerTimeout: any = null;
+    const observer = new MutationObserver(() => {
+      clearTimeout(observerTimeout);
+      observerTimeout = setTimeout(() => {
+        triggerAnalysis();
+      }, 800);
+    });
+
+    if (document.body) {
+      observer.observe(document.body, { childList: true, subtree: true });
+    }
+
+    // 4. Suivre les changements d'URL en navigation SPA (Twitter/LinkedIn/YouTube)
+    let lastUrl = window.location.href;
+    setInterval(() => {
+      if (window.location.href !== lastUrl) {
+        lastUrl = window.location.href;
+        triggerAnalysis(true);
+      }
+    }, 1000);
+
+    // 5. Écoute des commandes et messages
     chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       if (message.type === 'gl:get-current-result') {
         sendResponse({ result: currentResult || badge.getLastResult() });
@@ -134,7 +182,7 @@ export default defineContentScript({
         warnBanner.show(message.result);
         sendResponse({ ok: true });
       } else if (message.type === 'gl:reanalyze') {
-        triggerAnalysis();
+        triggerAnalysis(true);
         sendResponse({ ok: true });
       }
       return true;
@@ -143,8 +191,8 @@ export default defineContentScript({
     // Re-scanner lors d'une sélection de texte par l'utilisateur
     document.addEventListener('mouseup', () => {
       const sel = window.getSelection()?.toString()?.trim();
-      if (sel && sel.split(/\s+/).length >= 20) {
-        triggerAnalysis();
+      if (sel && sel.split(/\s+/).length >= 10) {
+        triggerAnalysis(true);
       }
     });
   },

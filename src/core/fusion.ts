@@ -44,8 +44,8 @@ export function fuseSignals(
   blockReason?: string;
   processedSignals: SignalResult[];
 } {
-  // Règle dure : < 50 mots -> Données insuffisantes
-  if (wordCount < 50) {
+  // Règle dure : < 8 mots -> Données insuffisantes
+  if (wordCount < 8) {
     return {
       score: 0,
       label: 'insufficient',

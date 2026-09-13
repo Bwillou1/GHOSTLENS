@@ -3,13 +3,13 @@ import { fuseSignals } from '@/src/core/fusion';
 import { DEFAULT_SETTINGS, SignalResult } from '@/src/core/signals/types';
 
 describe('Moteur de Fusion & Règles Dures (§6)', () => {
-  it('Règle < 50 mots : doit renvoyer "insufficient" et badge gris', () => {
+  it('Règle < 8 mots : doit renvoyer "insufficient" et badge gris', () => {
     const signals: SignalResult[] = [
       { id: 'd3', name: 'Compression', value: 0.9, weight: 0.5, contribution: 45, raw: '', ms: 1, available: true },
       { id: 'd6', name: 'Slop', value: 0.8, weight: 0.5, contribution: 40, raw: '', ms: 1, available: true },
     ];
 
-    const res = fuseSignals(signals, 35, DEFAULT_SETTINGS);
+    const res = fuseSignals(signals, 5, DEFAULT_SETTINGS);
     expect(res.label).toBe('insufficient');
     expect(res.color).toBe('#6b7280');
     expect(res.blocked).toBe(false);
