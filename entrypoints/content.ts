@@ -6,6 +6,7 @@ import { GhostLensBadge } from './content/badge';
 import { GhostLensBlockScreen } from './content/block';
 import { GhostLensWarnBanner } from './content/warn';
 import { GhostLensHighlighter } from './content/highlight';
+import { InFeedScanner } from './content/infeed';
 import { AnalysisResult } from '@/src/core/signals/types';
 
 export default defineContentScript({
@@ -29,21 +30,32 @@ export default defineContentScript({
 
     console.log('[GhostLens] Content Script activé sur', url);
 
+    const isSocialFeed = /twitter\.com|x\.com|linkedin\.com|facebook\.com|reddit\.com|youtube\.com|github\.com/.test(url);
+
     const badge = new GhostLensBadge();
+    const inFeedScanner = new InFeedScanner();
     const blockScreen = new GhostLensBlockScreen();
     const warnBanner = new GhostLensWarnBanner();
     const highlighter = new GhostLensHighlighter();
+
+    // Sur les réseaux sociaux, masquer le gros badge flottant par défaut au profit des badges sous chaque post
+    if (isSocialFeed) {
+      badge.toggle(); // Masqué par défaut sur les flux de posts
+    }
 
     let isAnalyzing = false;
     let currentResult: AnalysisResult | null = null;
     let lastAnalyzedText = '';
 
     async function triggerAnalysis(force: boolean = false): Promise<void> {
-      if (isAnalyzing) return;
-
       const currentUrl = window.location.href;
 
-      // 1. Détection de sélection utilisateur prioritaire (§5 Étape 1)
+      // 1. Scanner tous les posts du flux en mode in-line (comme GPTZero)
+      inFeedScanner.scanPosts(currentUrl);
+
+      if (isAnalyzing) return;
+
+      // 2. Détection de sélection utilisateur prioritaire (§5 Étape 1)
       const selection = window.getSelection()?.toString()?.trim() || '';
       let textToAnalyze = '';
       let isSelection = false;
@@ -53,20 +65,19 @@ export default defineContentScript({
         textToAnalyze = selection;
         isSelection = true;
       } else {
-        // 2. Extraction ciblée par adaptateur de site (P6)
+        // 3. Extraction ciblée par adaptateur de site (P6)
         const adapterResult = tryExtractWithAdapter(document, currentUrl);
         if (adapterResult && adapterResult.text && adapterResult.text.length > 15) {
           textToAnalyze = adapterResult.text;
           if (adapterResult.title) pageTitle = adapterResult.title;
         } else {
-          // 3. Extraction Readability zéro-erreur (C-3)
+          // 4. Extraction Readability zéro-erreur (C-3)
           const extracted = extractEditorialContent(document, currentUrl);
           textToAnalyze = extracted.textContent;
           if (extracted.title) pageTitle = extracted.title;
 
-          // 4. Fallback de secours pour les SPAs et réseaux sociaux
+          // 5. Fallback de secours
           if ((!textToAnalyze || textToAnalyze.length < 30) && document.body) {
-            // Chercher dans les paragraphes et articles visibles
             const pEls = document.querySelectorAll('article, p, div[data-testid*="tweet"], .feed-shared-update-v2');
             const collected: string[] = [];
             pEls.forEach((el) => {
@@ -82,7 +93,6 @@ export default defineContentScript({
         }
       }
 
-      // Éviter de re-scanner si le contenu n'a pas changé
       if (!force && textToAnalyze === lastAnalyzedText && currentResult) {
         return;
       }
@@ -93,12 +103,14 @@ export default defineContentScript({
 
       isAnalyzing = true;
       lastAnalyzedText = textToAnalyze;
-      badge.showAnalyzing();
 
-      // 3. Normalisation
+      // Afficher l'indicateur uniquement sur les articles
+      if (!isSocialFeed || isSelection) {
+        badge.showAnalyzing();
+      }
+
       const doc = prepareDocument(textToAnalyze);
 
-      // 4. Envoi au background
       try {
         const response = await chrome.runtime.sendMessage({
           type: 'gl:analyze',
@@ -116,7 +128,10 @@ export default defineContentScript({
         if (response && response.type === 'gl:result') {
           const result = response.result as AnalysisResult;
           currentResult = result;
-          badge.render(result);
+
+          if (!isSocialFeed || isSelection) {
+            badge.render(result);
+          }
 
           if (result.sentenceScores && result.sentenceScores.length > 0) {
             highlighter.highlightSentences(result.sentenceScores);
@@ -139,36 +154,35 @@ export default defineContentScript({
       }
     }
 
-    // 1. Lancement immédiat à l'état idle
+    // 1. Scan immédiat & Délais d'hydratation
     triggerAnalysis();
+    setTimeout(() => triggerAnalysis(), 400);
+    setTimeout(() => triggerAnalysis(), 1200);
+    setTimeout(() => triggerAnalysis(), 2500);
 
-    // 2. Lancement retardé (500ms et 1500ms) pour laisser les frameworks SPA (React/Vue/Twitter) hydrater le DOM
-    setTimeout(() => triggerAnalysis(), 500);
-    setTimeout(() => triggerAnalysis(), 1800);
-
-    // 3. Observer pour re-scanner dynamiquement quand de nouveaux posts/tweets sont injectés
+    // 2. Observer pour scanner chaque nouveau post lors du scroll infini
     let observerTimeout: any = null;
     const observer = new MutationObserver(() => {
       clearTimeout(observerTimeout);
       observerTimeout = setTimeout(() => {
-        triggerAnalysis();
-      }, 800);
+        inFeedScanner.scanPosts(window.location.href);
+      }, 400);
     });
 
     if (document.body) {
       observer.observe(document.body, { childList: true, subtree: true });
     }
 
-    // 4. Suivre les changements d'URL en navigation SPA (Twitter/LinkedIn/YouTube)
+    // 3. Suivre les changements d'URL
     let lastUrl = window.location.href;
     setInterval(() => {
       if (window.location.href !== lastUrl) {
         lastUrl = window.location.href;
         triggerAnalysis(true);
       }
-    }, 1000);
+    }, 800);
 
-    // 5. Écoute des commandes et messages
+    // 4. Écoute des commandes et messages
     chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       if (message.type === 'gl:get-current-result') {
         sendResponse({ result: currentResult || badge.getLastResult() });
